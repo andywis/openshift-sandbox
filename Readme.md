@@ -134,11 +134,64 @@ another example...
             stage('build') {
               openshiftBuild(buildConfig: 'openshift-sandbox', showBuildLogs: 'true')
             }
-            /*stage('deploy') {
-              openshiftDeploy(deploymentConfig: 'frontend')
-            }*/
+           
           }
 ```
+
+# How to arrange your deployment environments
+
+Now we have a very basic pipeline. Let's turn it into something useful.
+
+The Jenkinsfile above calls `openshiftBuild` which builds the app and 
+deploys it to the current project. The first thing to understand is that
+we can't build without deploying, and we have to deploy the app somewhere
+before we can test it.
+
+Which begs the question **How do you test something before you deploy it?**
+
+The answer is to create a *set* of OpenShift projects, and code the pipeline
+so that it promotes the build from one project to another. For example, we
+could have a "dev"(elopment) project and a "prod"(uction) project. Our 
+pipeline should live in the "dev" project and do the following:
+* build the app and deploy locally (i.e. to "dev")
+* Run the tests against the build we've just deployed
+* If the tests pass, promote the build to a different project, by deploying
+  it to a different project with something like the following:
+  ```yaml
+    stage('deploy') {  // TODO: confirm if this is valid
+        openshiftDeploy(deploymentConfig: 'prod')
+    }
+  ```
+  
+This means that our OpenShift projects can map almost exactly to the way we have
+designed our DevOps environments; we can have projects with names like "dev",
+"test", "integ", "preprod" and "prod", or whatever. A pipeline could exist
+in each environment which deploys the image to the next environment if the
+tests have passed.
+
+# Running unit tests
+The first step is to ensure the unit tests are passing. We want to deploy the
+app to "dev", run the unit tests, and detect whether the tests pass or fail.
+
+We could run the unit tests in two ways:
+1. Deploy the container, "docker exec" into it and run the unit tests there
+2. Build and deploy a separate container that contains the code and the
+   dependencies, and run the unit tests there.
+   
+We will cover both here...
+
+See [part 2](UnitTests1.md) where we discuss the "docker exec" option.
+
+# TODO
+* Change the instructions so that they set up an app called "demo-app" (maybe
+  `oc new-app --name="demo-app"`)
+* The correct way to promote an image to the next environment
+* The correct way to pause a pipeline, e.g. to wait until manual testing has 
+  completed.
+* Update UnitTests1.md with the correct way to detect a broken exec.
+* Extend UnitTests1.md with a real unit test - extending wsgi.py, creating
+  tests.py and adding pytest to the dependencies.
+* Work out how to create a slave image that can run the tests.
 
 # Further reading
 
@@ -147,5 +200,24 @@ https://docs.openshift.com/container-platform/3.7/dev_guide/dev_tutorials/opensh
 https://ukcloud.com/news-resources/news/blog/part-openshift-deploying-openshift-openshift-pipelines
    
 https://www.safaribooksonline.com/library/view/devops-with-openshift/9781491975954/ch04.html
+  * Perhaps out of date, but contains lots of useful `oc` commands. 
+  * Suggests using multiple projects to separate "dev" and "prod" 
+    deployments of your code.
+  * use `openshiftBuild(namespace: 'other_project_name', ...)` to run a build
+    in a different project.
    
 https://blog.openshift.com/openshift-3-3-pipelines-deep-dive/
+
+https://jenkins.io/doc/book/pipeline/jenkinsfile/
+
+https://github.com/toschneck/openshift-example-bakery-ci-pipeline
+
+To exec a process on a container: 
+https://github.com/openshift/jenkins-plugin#run-openshift-exec
+
+https://docs.openshift.org/latest/install_config/configuring_pipeline_execution.html
+Most of the documentation for Jenkins Pipeline jobs is here, 
+according to
+[this trello](https://trello.com/c/rBojNLGj/1121-5-better-devguide-pipeline-docs-techdebt)
+
+N.B. The above is a **scripted** pipeline
