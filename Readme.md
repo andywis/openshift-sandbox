@@ -9,13 +9,16 @@ We'll start by creating a really simple web application in Python
    - Create a new one called "andy-test1" with  `oc new-project andy-test1`
    - alternatively, create it in the Web UI by clicking the "New Project"
      button.
+     
+   If the project already exists, switch to it with e.g. `oc project andy-test1`
 
 1. Create a new source code repository; it must be in a location that can be
    seen by OpenShift (e.g. on github)
 
 1. Create the code for the new application
-   - we'll start with something really simple, and build it up.
-   - Copy the code from 
+   - we'll start with something really simple, and gradually add to it as we 
+     go.
+   - You can clone this repo, or copy the code from 
      [OpenShiftDemos on Github](https://github.com/OpenShiftDemos/os-sample-python)
      into your new repository. The 4 files you'll need are config.py,
      requirements.txt, wsgi.py and .s2i/environment
@@ -36,6 +39,7 @@ We'll start by creating a really simple web application in Python
       the app is working.
     - For example, if you want to copy this demo app 'verbatim', you could
       create the app with `oc new-app https://github.com/andywis/openshift-sandbox.git`
+      Note the app will be called "openshift-sandbox".
 
 1. Now we have a very simple web application (called **openshift-sandbox** if 
    you used my demo), we can develop it to add pipelines.
@@ -100,14 +104,19 @@ We'll start by creating a really simple web application in Python
       Build Config that uses a 
       **jenkinsPipelineStrategy** instead
    -  If you want to place the Jenkinsfile in a separate file, rather than
-      embedding it in the Yaml, you should use the **jenkinsfilePath**
-      directive instead, e.g.
+      embedding it in the Yaml, you will need to use the **jenkinsfilePath**
+      directive instead; note you also need to specify a GIT URI which
+      states where the jenkinsfile comes from, and the file must exist in
+      the repository. e.g.
    
         ```yaml
         spec:
           strategy:
             jenkinsPipelineStrategy:
-              jenkinsfilePath: some/path/to/your/jenkins/filename
+              jenkinsfilePath: path/to/your/jenkinsfile
+          source:
+            git:
+              uri: https://github.com/andywis/openshift-sandbox
         ```
 
   -  In the Jenkinsfile, "node" takes no arguments. If we specify an argument, 
@@ -117,28 +126,70 @@ We'll start by creating a really simple web application in Python
      Four slave node images are available: maven and nodejs, both in rhel7 and
      CentOS flavours. They all contain `oc` and `git` tooling.
      
+     In a later article, we will discuss how to create our own slave image
      
-  -  If the slave doesn't exist, you may see a message in the console log saying
-     "Jenkins doesn’t have label maven" Jenkins will then create a slave node
-     matching that label. It may take a while to start up.
-   
-   
-# More questions
-* How to run tests on the image?
+     
+  -  If the slave doesn't exist, you may see a message in the console log 
+     saying "Jenkins doesn’t have label maven" Jenkins will then create a
+     slave node matching that label. It may take a while to start up.
 
-another example...
-```yaml
-    jenkinsPipelineStrategy:
-      jenkinsfile: |-
-          node('maven') {
-            stage('build') {
-              openshiftBuild(buildConfig: 'openshift-sandbox', showBuildLogs: 'true')
-            }
-            /*stage('deploy') {
-              openshiftDeploy(deploymentConfig: 'frontend')
-            }*/
-          }
-```
+
+# How to arrange your deployment environments
+
+Now we have a very basic pipeline. Let's turn it into something useful.
+
+The Jenkinsfile above calls `openshiftBuild` which builds the app and 
+deploys it to the current project. The first thing to understand is that
+we can't build without deploying, and we have to deploy the app *somewhere*
+before we can test it.
+
+Which begs the question **How do you test something before you deploy it?**
+
+The answer is to create a *set* of OpenShift projects, and code the pipeline
+so that it promotes the build from one project to another. For example, we
+could have a "dev"(elopment) project and a "prod"(uction) project. Our 
+pipeline should live in the "dev" project and do the following:
+* build the app and deploy locally (i.e. to "dev")
+* Run the tests against the build we've just deployed
+* If the tests pass, promote the build to a different project, by deploying
+  it to a different project with something like the following:
+  ```yaml
+    stage('deploy') {  // TODO: confirm if this is valid
+        openshiftDeploy(deploymentConfig: 'my-prod-project')
+    }
+  ```
+  
+This means that our OpenShift projects can map almost exactly to the way we have
+designed our DevOps environments; we can have projects with names like "dev",
+"test", "integ", "preprod" and "prod", or whatever. A pipeline could exist
+in each environment which deploys the image to the next environment if the
+tests have passed.
+
+We will develop this idea in a future article.
+
+# Running unit tests
+The first step is to ensure the unit tests are passing. We want to deploy the
+app to "dev", run the unit tests, and detect whether the tests pass or fail.
+
+We could run the unit tests in two ways:
+1. Deploy the container, "docker exec" into it and run the unit tests there
+2. Build and deploy a separate container that contains the code and the
+   dependencies, and run the unit tests there.
+   
+We will cover both here...
+
+See [part 2](Part02_UnitTests1.md) where we discuss the "docker exec" option.
+
+# TODO
+* Part 3, build a Jenkins Slave where the unit tests can run
+* Part 4, promote an image from one project to another.
+* The correct way to promote an image to the next environment
+* The correct way to pause a pipeline, e.g. to wait until manual testing has 
+  completed.
+* Update UnitTests1.md with the correct way to detect a broken exec.
+* Extend UnitTests1.md with a real unit test - extending wsgi.py, creating
+  tests.py and adding pytest to the dependencies.
+* Work out how to create a slave image that can run the tests.
 
 # Further reading
 
@@ -147,5 +198,24 @@ https://docs.openshift.com/container-platform/3.7/dev_guide/dev_tutorials/opensh
 https://ukcloud.com/news-resources/news/blog/part-openshift-deploying-openshift-openshift-pipelines
    
 https://www.safaribooksonline.com/library/view/devops-with-openshift/9781491975954/ch04.html
+  * Perhaps out of date, but contains lots of useful `oc` commands. 
+  * Suggests using multiple projects to separate "dev" and "prod" 
+    deployments of your code.
+  * use `openshiftBuild(namespace: 'other_project_name', ...)` to run a build
+    in a different project.
    
 https://blog.openshift.com/openshift-3-3-pipelines-deep-dive/
+
+https://jenkins.io/doc/book/pipeline/jenkinsfile/
+
+https://github.com/toschneck/openshift-example-bakery-ci-pipeline
+
+To exec a process on a container: 
+https://github.com/openshift/jenkins-plugin#run-openshift-exec
+
+https://docs.openshift.org/latest/install_config/configuring_pipeline_execution.html
+Most of the documentation for Jenkins Pipeline jobs is here, 
+according to
+[this trello](https://trello.com/c/rBojNLGj/1121-5-better-devguide-pipeline-docs-techdebt)
+
+N.B. The above is a **scripted** pipeline
