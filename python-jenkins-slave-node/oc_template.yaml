@@ -1,0 +1,97 @@
+#
+# Template to create a Jenkins Slave with Python dependencies
+#
+# See also
+# https://github.com/UKCloud/jenkins-openstack-slave-pipeline/blob/master/openshift-yaml/template-openstackclient-jenkins-slave.yaml
+#
+apiVersion: v1
+kind: Template
+metadata:
+  creationTimestamp: null
+  name: jenkins-slave-with-python
+objects:
+
+  # This entry sets up an ImageStream for jenkins-slave-base-rhel7, the
+  # base image used to construct our custom slave node. The image name is
+  # the referred to in the BuildConfigs further down in this template.
+  - apiVersion: v1
+    kind: ImageStream
+    metadata:
+      creationTimestamp: null
+      name: jenkins-slave-base-rhel7
+    spec:
+      tags:
+      - from:
+          kind: DockerImage
+          name: registry.access.redhat.com/openshift3/jenkins-slave-base-rhel7
+        importPolicy:
+          scheduled: true
+        name: latest
+        referencePolicy:
+          type: Source
+
+  # This entry sets up the ImageStream for the image called
+  # 'python-jenkins-slave' ( or ${NAME} ) produced by
+  # the build configs in this template.
+  - apiVersion: v1
+    kind: ImageStream
+    metadata:
+      creationTimestamp: null
+      labels:
+        role: jenkins-slave
+      name: ${NAME}
+
+  # This BuildConfig uses the DockerStrategy to build the image based
+  # on the Dockerfile located at ${CONTEXT_DIR}
+  - apiVersion: v1
+    kind: BuildConfig
+    metadata:
+      creationTimestamp: null
+      labels:
+        build: ${NAME}
+      name: ${NAME}
+    spec:
+      output:
+        to:
+          kind: ImageStreamTag
+          name: ${NAME}:latest
+      postCommit: {}
+      resources: {}
+      runPolicy: Serial
+      source:
+        contextDir: ${CONTEXT_DIR}
+        git:
+          ref: ${SOURCE_REPOSITORY_REF}
+          uri: ${SOURCE_REPOSITORY_URL}
+        type: Git
+      strategy:
+        dockerStrategy:
+          from:
+            kind: ImageStreamTag
+            name: jenkins-slave-base-rhel7:latest
+        type: Docker
+
+# Input parameters and defaults.
+parameters:
+- description: The name assigned to the objects defined in this template.
+  displayName: Name
+  name: NAME
+  required: true
+  value: python-jenkins-slave
+
+- description: The URL of the repository with your application source code.
+  displayName: Git Repository URL
+  name: SOURCE_REPOSITORY_URL
+  required: true
+  value: https://github.com/andywis/openshift-sandbox.git
+
+- description: Set this to a branch name, tag or other ref of your repository
+    if you are not using the default branch.
+  displayName: Git Reference
+  name: SOURCE_REPOSITORY_REF
+
+- description: Set this to the relative path to your Dockerfile if it is not
+    in the root of your repository.
+  displayName: Context Directory
+  name: CONTEXT_DIR
+  value: python-jenkins-slave-node/
