@@ -50,7 +50,7 @@ specify the base image and the resultant image as "ImageStreams"
     RUN yum install -y python-devel gcc && \
         curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py" && \
         python get-pip.py && \
-        pip install pytest && \
+        pip install Flask pytest && \
     USER 1001
     ```
     
@@ -59,6 +59,9 @@ specify the base image and the resultant image as "ImageStreams"
     preferred to use Python 3, but that requires further community projects to
     be added to the "yum install" command, which is beyond the scope of this
     article.)
+    
+    **Note** also that we install just the Python modules necessary to run 
+    the unit tests.
 
 3. The template is then used to create the slave node via the `new app`
    command. **Only run this once**:
@@ -66,42 +69,49 @@ specify the base image and the resultant image as "ImageStreams"
     oc new-app -f oc new-app -f python-jenkins-slave-node/oc_template.yaml
     ```
 
-At this stage, we have a slave node, but Jenkins doesn't know about it.
-**YOU NEED TO RUN A BUILD**
-- see gareth's problems with Pip
-  https://github.com/UKCloud/jenkins-openstack-slave-pipeline/commit/1f7bf8124537ac0b3637c78ade48f1dfd4f491b8
-- see https://pip.pypa.io/en/stable/installing/  
+4. Build the slave node: At this stage, we have configured Openshift via the
+   template to be able to build the slave node, but the Docker Image does
+   not yet exist, so Jenkins doesn't know about it; The next step is to build
+   it.
+   - in the CLI `oc start-build python-jenkins-slave`
+   - alternatively, in the UI, navigate to the "python-jenkins-slave" in the
+     Builds page, and click the "Start Build" button.
+ 
 
 5. We can now **use** the slave node as part of our CI process by referring to 
-   it, e.g.
+   it in the Jenkinsfile. For example, clone our repository and run the
+   unit tests: Note you can have multiple `node` statements
    ```yaml
-   node('python-jenkins-slave') {
-        stage('do something') {
-            ...
-        }
+   node {                                        // Runs on the Jenkins master
+       stage('build') {
+           ...                         // The build stage described previously
+       }
    }
-   ```
-   
-   
-### Automatically rebuilding the slave
-1. Within OpenShift we create two image streams. An image stream allows us to
-   automatically perform actions such us building an image or undertaking a
-   deployment when certain actions are triggered.
+   node('python-jenkins-slave') {                 // Runs on the jenkins slave
+       stage('run tests') {
+           sh('''(python --version; git --version) | true''')
+           sh('''git clone https://github.com/andywis/openshift-sandbox.git''')
+           sh('''cd openshift-sandbox && pytest tests.py''')
+       }
+    }
+    ```
+    In the above example, printing the Python version and Git version is
+    helpful if you need to determine why a test failed. Note they are also
+    wrapped in a `(cmd) | true` structure which forces this line to return an
+    exit status of zero, so that Jenkins will carry on even if this line fails.
+    
+    
 
-1. Our first image stream monitors the upstream Jenkins slave image from RedHat
-   for any changes. Our second monitors for any changes to our own Jenkins
-   slave image that we produce as an artifact to our build pipeline. 
+## Suggested improvements:
+* Ensure Virtualenv is installed via the Dockerfile, then the "pip install"
+  tasks can take place in the Jenkinsfile instead.
+    
+* Automatically rebuilding the slave - The template can be extended to add 
+  a pipeline that can update the
+   image should the upstream (base) image change. For more details, see:
+   * https://github.com/UKCloud/jenkins-openstack-slave-pipeline
+   * https://ukcloud.com/news-resources/news/blog/part-openshift-deploying-openshift-openshift-pipelines
+   * https://docs.openshift.org/latest/dev_guide/templates.html
    
-1. The "Pipeline build config" is told to monitor the upstream image from 
-  RedHat
-  
-1. Configure a Git Hook so that any changes you make to the custom slave 
-   node will rebuild the slave node image.
-   
-1. The template can be extended to add a pipeline that can update the
-   image should the upstream (base) image change.
-   
-See https://github.com/UKCloud/jenkins-openstack-slave-pipeline
-
-See also
-    https://docs.openshift.org/latest/dev_guide/templates.html
+* There are recommended ways of integrating Pytest into Jenkins; see
+  https://jenkins.io/solutions/python/
