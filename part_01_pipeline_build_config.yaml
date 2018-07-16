@@ -1,0 +1,21 @@
+kind: "BuildConfig"
+apiVersion: "v1"
+metadata:
+  name: "sample-pipeline"
+spec:
+  strategy:
+    jenkinsPipelineStrategy:
+      # This is a very simple (inline) Jenkinsfile;
+      # it builds the app in the "build" stage, then
+      # runs some simple shell commands on the Jenkins host
+      # in the second stage.
+      jenkinsfile: |-
+        node {
+          stage('build') {
+            openshiftBuild(buildConfig: 'openshift-sandbox', showBuildLogs: 'true')
+          }
+          stage('test') {
+            sh('''hostname; pwd; ls -l;''')
+          }
+        }
+    type: JenkinsPipeline

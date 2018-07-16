@@ -1,4 +1,15 @@
-# Setting up the Project and Application
+# Continuous Integration on OpenShift
+In this series, we discuss a number of techniques for configuring CI within
+your OpenShift environment.
+
+We will create a simple application in Python and set up a Jenkins Pipeline
+where we demonstrate different techniques for running tests, and promoting 
+the app to a higher environment.
+
+In CI, an **environment** is a setup that mimics 
+
+
+## Setting up the Project and Application
 We'll start by creating a really simple web application in Python
 
 1. Log in to the OpenShift Container Platform (OCP) CLI:
@@ -46,7 +57,7 @@ We'll start by creating a really simple web application in Python
    
 -------
 
-# Setting up the Pipeline
+## Setting up the Pipeline
 
 1. Create the Jenkins container within your project. OpenShift will 
    recognise the name and create everything you need. To create the Jenkins
@@ -87,6 +98,7 @@ We'll start by creating a really simple web application in Python
             }
         type: JenkinsPipeline
     ```
+    (see the file [part_01_pipeline_build_config.yaml](part_01_pipeline_build_config.yaml))
 
 1. Create the pipeline by running "oc create" with the above file:
     ```bash
@@ -96,7 +108,7 @@ We'll start by creating a really simple web application in Python
     file (in this case, the "thing" is a Pipeline, which is a BuildConfig)
 
 
-## Things to notice:
+### Things to notice:
    -  When we created the app earlier, the "oc new-app" command created a
       BuildConfig with the default "strategy", which is the 
       **sourceStrategy**. This pulls your code from source control, builds
@@ -134,7 +146,7 @@ We'll start by creating a really simple web application in Python
      slave node matching that label. It may take a while to start up.
 
 
-# How to arrange your deployment environments
+## How to arrange your deployment environments
 
 Now we have a very basic pipeline. Let's turn it into something useful.
 
@@ -167,7 +179,7 @@ tests have passed.
 
 We will develop this idea in a future article.
 
-# Running unit tests
+## Running unit tests
 The first step is to ensure the unit tests are passing. We want to deploy the
 app to "dev", run the unit tests, and detect whether the tests pass or fail.
 
@@ -181,17 +193,12 @@ We will cover both here...
 See [part 2](Part02_UnitTests1.md) where we discuss the "docker exec" option.
 
 # TODO
-* Part 3, build a Jenkins Slave where the unit tests can run
-* Part 4, promote an image from one project to another.
-* The correct way to promote an image to the next environment
 * The correct way to pause a pipeline, e.g. to wait until manual testing has 
   completed.
 * Update UnitTests1.md with the correct way to detect a broken exec.
-* Extend UnitTests1.md with a real unit test - extending wsgi.py, creating
-  tests.py and adding pytest to the dependencies.
-* Work out how to create a slave image that can run the tests.
+* Improve the initial documentation so it starts by talking about CI
 
-# Further reading
+## Further reading
 
 https://docs.openshift.com/container-platform/3.7/dev_guide/dev_tutorials/openshift_pipeline.html#the-pipeline-build-config
 
