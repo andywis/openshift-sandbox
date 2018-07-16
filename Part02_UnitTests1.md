@@ -106,5 +106,5 @@ node {
   verify the app is giving us the phrase we expect
 
 
-In [Part 3](Part02_JenkinsSlave.md), we'll discuss an alternative mechanism
+In [Part 3](Part03_JenkinsSlave.md), we'll discuss an alternative mechanism
 for running the tests in the Jenkins Slave. 
