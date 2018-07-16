@@ -104,3 +104,7 @@ node {
 * **openshiftExec** returns a response object, which provides parameters such
   as stdout, stderr, error and failure. We use the 'stdout' parameter to
   verify the app is giving us the phrase we expect
+
+
+In [Part 3](Part02_JenkinsSlave.md), we'll discuss an alternative mechanism
+for running the tests in the Jenkins Slave. 
