@@ -83,7 +83,7 @@ parameters:
   displayName: Git Repository URL
   name: SOURCE_REPOSITORY_URL
   required: true
-  value: https://github.com/andywis/openshift-sandbox.git
+  value: git@github.com:andywis/openshift-sandbox.git
 
 - description: Set this to a branch name, tag or other ref of your repository
     if you are not using the default branch.

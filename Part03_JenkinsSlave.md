@@ -66,7 +66,7 @@ specify the base image and the resultant image as "ImageStreams"
 3. The template is then used to create the slave node via the `new app`
    command. **Only run this once**:
     ```bash
-    oc new-app -f oc new-app -f python-jenkins-slave-node/oc_template.yaml
+    oc new-app -f python-jenkins-slave-node/oc_template.yaml
     ```
 
 4. Build the slave node: At this stage, we have configured Openshift via the

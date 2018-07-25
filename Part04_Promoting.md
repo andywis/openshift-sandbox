@@ -72,7 +72,7 @@ but it could then be detected by a  task in "demo-integ".
 If we want to add the image to the "demo-integ" namespace, we need to
 allow the service accounts for Jenkins in each project to see eachother, 
 as described 
-[here](https://docs.openshift.com/container-platform/3.7/using_images/other_images/jenkins.html#jenkins-cross-project-access).
+[here](https://docs.openshift.com/container-platform/3.9/using_images/other_images/jenkins.html#jenkins-cross-project-access).
 
 Then the pipeline can be modifed to look like this:
 ```text
